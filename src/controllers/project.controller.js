@@ -5,6 +5,11 @@ const ALLOWED_STATUS = ['pending', 'active', 'completed'];
 exports.list = async (req, res, next) => {
   try {
     const { search, status } = req.query;
+    const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
+    const limitRaw = parseInt(String(req.query.limit), 10) || 10;
+    const limit = Math.min(100, Math.max(1, limitRaw));
+    const offset = (page - 1) * limit;
+
     const where = [];
     const params = [];
 
@@ -17,12 +22,27 @@ exports.list = async (req, res, next) => {
       params.push(status);
     }
 
-    const sql = `SELECT * FROM projects ${
-      where.length ? 'WHERE ' + where.join(' AND ') : ''
-    } ORDER BY created_at DESC`;
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-    const [rows] = await pool.query(sql, params);
-    res.json(rows);
+    const [countRows] = await pool.query(
+      `SELECT COUNT(*) AS total FROM projects ${whereSql}`,
+      params
+    );
+    const total = Number(countRows[0]?.total) || 0;
+
+    const [rows] = await pool.query(
+      `SELECT * FROM projects ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    );
+
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+    res.json({
+      data: rows,
+      page,
+      limit,
+      total,
+      totalPages,
+    });
   } catch (err) { next(err); }
 };
 
@@ -40,8 +60,8 @@ exports.create = async (req, res, next) => {
     if (!name) return res.status(400).json({ message: 'name is required' });
 
     const [result] = await pool.query(
-      `INSERT INTO projects (name, description, status, start_date, end_date)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO projects (name, description, status, start_date, end_date, updated_at)
+       VALUES (?, ?, ?, ?, ?, NOW())`,
       [name, description || null, status || 'pending', start_date || null, end_date || null]
     );
     const [rows] = await pool.query('SELECT * FROM projects WHERE id = ?', [result.insertId]);
@@ -54,7 +74,7 @@ exports.update = async (req, res, next) => {
     const { name, description, status, start_date, end_date } = req.body;
     const [result] = await pool.query(
       `UPDATE projects
-       SET name=?, description=?, status=?, start_date=?, end_date=?
+       SET name=?, description=?, status=?, start_date=?, end_date=?, updated_at=NOW()
        WHERE id=?`,
       [name, description || null, status, start_date || null, end_date || null, req.params.id]
     );

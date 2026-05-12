@@ -23,14 +23,27 @@ const ctrl = require('../controllers/project.controller');
  *       - in: query
  *         name: status
  *         schema: { type: string, enum: [pending, active, completed] }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
  *     responses:
  *       200:
- *         description: Array of projects
+ *         description: Paginated project list
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items: { $ref: '#/components/schemas/Project' }
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/Project' }
+ *                 page: { type: integer }
+ *                 limit: { type: integer }
+ *                 total: { type: integer }
+ *                 totalPages: { type: integer }
  *   post:
  *     tags: [Projects]
  *     summary: Create a new project

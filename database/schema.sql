@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS projects (
   status ENUM('pending', 'active', 'completed') DEFAULT 'pending',
   start_date DATE,
   end_date DATE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NULL DEFAULT NULL,
   INDEX idx_status (status),
   INDEX idx_name (name)
 );
