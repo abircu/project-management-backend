@@ -1,8 +1,12 @@
 # Project Management / Backend
 
-**Stack:** Express 4 · MySQL (`mysql2`) · OpenAPI via Swagger UI.
+**Stack:** Express 4 · MySQL (`mysql2`).
 
-REST API for projects: list (search, status, pagination), create, read, update, delete.
+REST API: project list (search, status, pagination), create, read, update, delete.
+
+## About this project
+
+Project management backend I built and can explain end-to-end (routes, SQL, errors, deployment).
 
 ---
 
@@ -10,31 +14,22 @@ REST API for projects: list (search, status, pagination), create, read, update, 
 
 | # | Section |
 |---|---------|
-| 1 | [Stack](#stack) |
+| 1 | [About this project](#about-this-project) |
 | 2 | [Prerequisites](#prerequisites) |
 | 3 | [Quick start](#quick-start) |
-| 4 | [Database schema](#database-schema) |
-| 5 | [Project layout](#project-layout) |
-| 6 | [API](#api) |
-| 7 | [Swagger & Postman](#swagger--postman) |
-| 8 | [npm scripts](#npm-scripts) |
-
----
-
-## Stack
-
-- **Runtime:** Node.js (CommonJS)
-- **HTTP:** Express, `cors`, `express.json()`
-- **DB:** MySQL connection pool — `src/config/db.js`
-- **Docs:** JSDoc OpenAPI comments in routes → `/api-docs` and `/api-docs.json`
-- **Errors:** `src/middleware/errorHandler.js`
+| 4 | [Live server URL](#live-server-url) |
+| 5 | [Database schema](#database-schema) |
+| 6 | [Project layout](#project-layout) |
+| 7 | [API](#api) |
+| 8 | [API testing (Postman, curl)](#api-testing-postman-curl) |
+| 9 | [npm scripts](#npm-scripts) |
 
 ---
 
 ## Prerequisites
 
 - Node.js (LTS)
-- MySQL server reachable with credentials you put in `.env`
+- MySQL
 
 ---
 
@@ -45,26 +40,27 @@ cd backend
 npm install
 ```
 
-1. Copy env template: `cp .env.example .env` (Windows: `copy .env.example .env`).
-2. Edit `.env` — especially `DB_*` and optional `PORT`, `CLIENT_URL`.
-3. Create DB + tables: [Database schema](#database-schema).
-4. Run dev server:
+1. `cp .env.example .env` (Windows: `copy .env.example .env`)
+2. Set `DB_*` in `.env`. Optionally set `API_PUBLIC_URL` after you deploy (see below).
+3. Apply `database/schema.sql` to MySQL.
+4. `npm run dev`
 
-```bash
-npm run dev
+Local base URL: `http://localhost:5000` (or your `PORT`).
+
+---
+
+## Live server URL
+
+After you deploy (Render, Railway, VPS, etc.), set in `.env`:
+
+```env
+API_PUBLIC_URL=https://project-management-backend-b9kx.onrender.com
 ```
 
-**Useful URLs** (default port `5000`):
+- No trailing slash on `API_PUBLIC_URL`. Public API base for clients: **`https://project-management-backend-b9kx.onrender.com/api`** (same value the frontend uses as `VITE_API_BASE_URL`).
+- `API_PUBLIC_URL` is only used in the startup log locally; set it on Render from the service dashboard if you want it in server env.
 
-| Purpose | URL |
-|---------|-----|
-| Health | `GET http://localhost:5000/api/health` |
-| Swagger UI | `http://localhost:5000/api-docs` |
-| OpenAPI JSON | `http://localhost:5000/api-docs.json` |
-
-```bash
-curl -s http://localhost:5000/api/health
-```
+Document the same URL wherever you share the API (README, frontend `VITE_*` / env, Postman collection variable `{{baseUrl}}`).
 
 ---
 
@@ -72,22 +68,20 @@ curl -s http://localhost:5000/api/health
 
 **File:** `database/schema.sql`
 
-- Creates database `project_management` (utf8mb4) if missing.
-- Table **`projects`:** `id`, `name`, `description`, `status` (`pending` | `active` | `completed`), `start_date`, `end_date`, `created_at`, `updated_at`.
-
-Apply:
+- Database: `project_management` (utf8mb4)
+- Table **`projects`:** `id`, `name`, `description`, `status` (`pending` | `active` | `completed`), `start_date`, `end_date`, `created_at`, `updated_at`
 
 ```bash
 mysql -u root -p < database/schema.sql
 ```
 
-Remote example:
+Remote:
 
 ```bash
-mysql -h YOUR_HOST -P 3306 -u YOUR_USER -p < database/schema.sql
+mysql -h HOST -P 3306 -u USER -p < database/schema.sql
 ```
 
-`DB_NAME` in `.env` should match (default `project_management`).
+Match `DB_NAME` in `.env` (default `project_management`).
 
 ---
 
@@ -95,19 +89,15 @@ mysql -h YOUR_HOST -P 3306 -u YOUR_USER -p < database/schema.sql
 
 ```
 backend/
-  database/
-    schema.sql
+  database/schema.sql
+  postman/
+    Project-Management-API.postman_collection.json
   src/
-    index.js                 # app entry, routes, Swagger mount
-    config/
-      db.js                  # MySQL pool
-      swagger.js             # OpenAPI base spec
-    controllers/
-      project.controller.js
-    routes/
-      project.routes.js
-    middleware/
-      errorHandler.js
+    index.js
+    config/db.js
+    controllers/project.controller.js
+    routes/project.routes.js
+    middleware/errorHandler.js
   .env.example
   package.json
   README.md
@@ -117,32 +107,84 @@ backend/
 
 ## API
 
-**Base:** `http://localhost:5000/api`
+**Base paths**
+
+| Environment | Base |
+|-------------|------|
+| Local | `http://localhost:5000/api` |
+| Live | `https://project-management-backend-b9kx.onrender.com/api` |
+
+**Endpoints**
 
 | Method | Path | Notes |
 |:------:|------|--------|
+| `GET` | `/health` | Full URL: `{base}/health` — liveness |
 | `GET` | `/projects` | Query: `search`, `status`, `page`, `limit` |
-| `POST` | `/projects` | JSON body; `name` required |
-| `GET` | `/projects/:id` | Integer `id` |
+| `POST` | `/projects` | JSON; `name` required |
+| `GET` | `/projects/:id` | |
 | `PUT` | `/projects/:id` | JSON body |
 | `DELETE` | `/projects/:id` | |
 
-Details and schemas: open **Swagger UI** (`/api-docs`).
+Example live health check:
+
+```text
+GET https://project-management-backend-b9kx.onrender.com/api/health
+```
 
 ---
 
-## Swagger & Postman
+## API testing (Postman, curl)
 
-**In browser:** `http://localhost:5000/api-docs` — try requests from the UI.
+### Postman (exported collection)
 
-**Postman**
 
-1. **Import** → **Link** → `http://localhost:5000/api-docs.json`
-2. If import-by-URL fails: download that JSON in a browser, then **Import** → **File**.
-3. Collection server / base path should resolve to `http://localhost:5000/api`.
-4. For `POST` / `PUT`: **Body** → **raw** → **JSON**.
+**`postman/Project-Management-API.postman_collection.json`**
 
-**Other clients:** Insomnia, Hoppscotch, or VS Code Thunder Client — same OpenAPI file.
+I attach this JSON file to Gmail when you can download and and **Import → File** from the download without cloning the repo. The copy in the repository stays the source of truth.
+
+1. Postman → **Import** → **File** → choose that JSON.
+2. Open the collection → **Variables** (or edit collection variables).
+3. Set **`baseUrl`** to `http://localhost:5000/api` (local) or **`https://project-management-backend-b9kx.onrender.com/api`** (live). The collection defaults to live; change it for local runs. Path must end with `/api` (no extra slash after `api`).
+4. Set **`projectId`** to a real row ID for get/update/delete requests.
+
+You can also **Share** → export from Postman and replace this file when your requests change.
+
+### Postman (manual)
+
+1. Create a collection variable `baseUrl` = `http://localhost:5000/api` (local) or `https://project-management-backend-b9kx.onrender.com/api` (live).
+2. Add requests: `GET {{baseUrl}}/health`, `GET {{baseUrl}}/projects`, etc.
+3. `POST` / `PUT`: **Body** → **raw** → **JSON**, e.g. create:
+
+```json
+{
+  "name": "Demo project",
+  "description": "Optional",
+  "status": "pending",
+  "start_date": "2026-01-01",
+  "end_date": "2026-12-31"
+}
+```
+
+### curl (local)
+
+Replace `BASE` if needed.
+
+```bash
+BASE=http://localhost:5000/api
+curl -s "$BASE/health"
+curl -s "$BASE/projects?page=1&limit=5"
+curl -s -X POST "$BASE/projects" -H "Content-Type: application/json" \
+  -d "{\"name\":\"From curl\",\"status\":\"active\"}"
+```
+
+### curl (live)
+
+```bash
+BASE=https://project-management-backend-b9kx.onrender.com/api
+curl -s "$BASE/health"
+```
+
+**Alternative:** [Hoppscotch](https://hoppscotch.io/) or Insomnia — same URLs and JSON bodies.
 
 ---
 
@@ -154,3 +196,4 @@ Details and schemas: open **Swagger UI** (`/api-docs`).
 | `npm start` | `node src/index.js` |
 
 ---
+
